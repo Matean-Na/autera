@@ -1,6 +1,7 @@
 package http
 
 import (
+	"autera/internal/modules/users/domain"
 	"net/http"
 
 	adsh "autera/internal/modules/ads/transport/http"
@@ -52,33 +53,33 @@ func NewRouter(d RouterDeps) http.Handler {
 
 			// SELLER
 			authR.Route("/seller", func(seller chi.Router) {
-				seller.Use(middleware.RBAC(d.Logger, "seller"))
+				seller.Use(middleware.RBAC(d.Logger, domain.RoleSeller))
 				adsh.RegisterSellerRoutes(seller, d.AdsHandler)
 				insh.RegisterSellerRoutes(seller, d.InsHandler)
 			})
 
 			// INSPECTOR
 			authR.Route("/inspector", func(ins chi.Router) {
-				ins.Use(middleware.RBAC(d.Logger, "inspector"))
+				ins.Use(middleware.RBAC(d.Logger, domain.RoleInspector))
 				insh.RegisterInspectorRoutes(ins, d.InsHandler)
 			})
 
 			// ADMIN
 			authR.Route("/admin", func(admin chi.Router) {
-				admin.Use(middleware.RBAC(d.Logger, "admin"))
+				admin.Use(middleware.RBAC(d.Logger, domain.RoleAdmin))
 				adsh.RegisterAdminRoutes(admin, d.AdsHandler)
 				insh.RegisterAdminRoutes(admin, d.InsHandler)
 			})
 
 			// OWNER
 			authR.Route("/owner", func(owner chi.Router) {
-				owner.Use(middleware.RBAC(d.Logger, "owner"))
+				owner.Use(middleware.RBAC(d.Logger, domain.RoleOwner))
 				reph.RegisterOwnerRoutes(owner, d.RepHandler)
 			})
 
 			// BUYER
 			authR.Route("/buyer", func(buyer chi.Router) {
-				buyer.Use(middleware.RBAC(d.Logger, "buyer"))
+				buyer.Use(middleware.RBAC(d.Logger, domain.RoleBuyer))
 				reph.RegisterBuyerRoutes(buyer, d.RepHandler)
 			})
 		})

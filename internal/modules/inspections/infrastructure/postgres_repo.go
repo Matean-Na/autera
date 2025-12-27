@@ -8,9 +8,15 @@ import (
 	"autera/internal/modules/inspections/domain"
 )
 
-type PostgresRepo struct{ db *sql.DB }
+type PostgresRepo struct {
+	db *sql.DB
+}
 
-func NewPostgresRepo(db *sql.DB) *PostgresRepo { return &PostgresRepo{db: db} }
+func NewPostgresRepo(db *sql.DB) *PostgresRepo {
+	return &PostgresRepo{
+		db: db,
+	}
+}
 
 func (r *PostgresRepo) Request(ctx context.Context, adID, sellerID int64) (int64, error) {
 	var id int64

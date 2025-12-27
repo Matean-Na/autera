@@ -8,9 +8,15 @@ import (
 	"autera/internal/modules/reports/domain"
 )
 
-type PostgresRepo struct{ db *sql.DB }
+type PostgresRepo struct {
+	db *sql.DB
+}
 
-func NewPostgresRepo(db *sql.DB) *PostgresRepo { return &PostgresRepo{db: db} }
+func NewPostgresRepo(db *sql.DB) *PostgresRepo {
+	return &PostgresRepo{
+		db: db,
+	}
+}
 
 func (r *PostgresRepo) GetByAdID(ctx context.Context, adID int64) (*domain.Report, error) {
 	row := r.db.QueryRowContext(ctx, `

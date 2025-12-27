@@ -12,7 +12,11 @@ type PostgresRepo struct {
 	db *sql.DB
 }
 
-func NewPostgresRepo(db *sql.DB) *PostgresRepo { return &PostgresRepo{db: db} }
+func NewPostgresRepo(db *sql.DB) *PostgresRepo {
+	return &PostgresRepo{
+		db: db,
+	}
+}
 
 func (r *PostgresRepo) Create(ctx context.Context, u *domain.User) (int64, error) {
 	tx, err := r.db.BeginTx(ctx, nil)

@@ -13,9 +13,15 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-type Handler struct{ svc *application.Service }
+type Handler struct {
+	svc *application.Service
+}
 
-func NewHandler(svc *application.Service) *Handler { return &Handler{svc: svc} }
+func NewHandler(svc *application.Service) *Handler {
+	return &Handler{
+		svc: svc,
+	}
+}
 
 func (h *Handler) ListPublic(w http.ResponseWriter, r *http.Request) {
 	f := domain.ListFilter{Limit: 20, Offset: 0}
@@ -38,14 +44,18 @@ func (h *Handler) GetPublic(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) CreateSeller(w http.ResponseWriter, r *http.Request) {
-	meta := r.Context().Value(middleware.UserMetaKey).(middleware.UserMeta)
+	user, ok := middleware.UserFromCtx(r)
+	if !ok || user == nil {
+		response.Unauthorized(w, "unauthorized")
+		return
+	}
 
 	var in application.CreateAdInput
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		response.BadRequest(w, "invalid json", err.Error())
 		return
 	}
-	in.SellerID = meta.UserID
+	in.SellerID = user.ID
 
 	id, err := h.svc.Create(r.Context(), in)
 	if err != nil {
@@ -56,10 +66,15 @@ func (h *Handler) CreateSeller(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) SubmitSeller(w http.ResponseWriter, r *http.Request) {
-	meta := r.Context().Value(middleware.UserMetaKey).(middleware.UserMeta)
+	user, ok := middleware.UserFromCtx(r)
+	if !ok || user == nil {
+		response.Unauthorized(w, "unauthorized")
+		return
+	}
+
 	adID, _ := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 
-	if err := h.svc.SubmitToModeration(r.Context(), adID, meta.UserID); err != nil {
+	if err := h.svc.SubmitToModeration(r.Context(), adID, user.ID); err != nil {
 		response.BadRequest(w, "submit failed", err.Error())
 		return
 	}

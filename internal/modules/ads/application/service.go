@@ -10,7 +10,11 @@ type Service struct {
 	repo domain.Repository
 }
 
-func NewService(repo domain.Repository) *Service { return &Service{repo: repo} }
+func NewService(repo domain.Repository) *Service {
+	return &Service{
+		repo: repo,
+	}
+}
 
 type CreateAdInput struct {
 	SellerID int64  `json:"seller_id"`

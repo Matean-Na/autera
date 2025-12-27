@@ -21,7 +21,7 @@ func main() {
 	}
 
 	// [logger]
-	logger := app.NewZapLogger(cfg.Env)
+	logger := app.NewZapLogger(cfg.App.Env)
 	defer func() { _ = logger.Sync() }()
 
 	// [application]
@@ -33,7 +33,7 @@ func main() {
 	srv := application.HTTPServer
 
 	go func() {
-		logger.Info("http server starting", app.ZapString("addr", cfg.HTTPAddr))
+		logger.Info("http server starting", app.ZapString("addr", cfg.HTTP.Addr))
 		if err := srv.ListenAndServe(); err != nil {
 			logger.Error("http server stopped", app.ZapErr(err))
 		}

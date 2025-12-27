@@ -12,15 +12,26 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-type Handler struct{ svc *application.Service }
+type Handler struct {
+	svc *application.Service
+}
 
-func NewHandler(svc *application.Service) *Handler { return &Handler{svc: svc} }
+func NewHandler(svc *application.Service) *Handler {
+	return &Handler{
+		svc: svc,
+	}
+}
 
 func (h *Handler) RequestSeller(w http.ResponseWriter, r *http.Request) {
-	meta := r.Context().Value(middleware.UserMetaKey).(middleware.UserMeta)
+	user, ok := middleware.UserFromCtx(r)
+	if !ok || user == nil {
+		response.Unauthorized(w, "unauthorized")
+		return
+	}
+
 	adID, _ := strconv.ParseInt(chi.URLParam(r, "ad_id"), 10, 64)
 
-	id, err := h.svc.Request(r.Context(), adID, meta.UserID)
+	id, err := h.svc.Request(r.Context(), adID, user.ID)
 	if err != nil {
 		response.BadRequest(w, "request failed", err.Error())
 		return
@@ -45,8 +56,13 @@ func (h *Handler) AssignAdmin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ListAssignedInspector(w http.ResponseWriter, r *http.Request) {
-	meta := r.Context().Value(middleware.UserMetaKey).(middleware.UserMeta)
-	items, err := h.svc.ListAssigned(r.Context(), meta.UserID)
+	user, ok := middleware.UserFromCtx(r)
+	if !ok || user == nil {
+		response.Unauthorized(w, "unauthorized")
+		return
+	}
+
+	items, err := h.svc.ListAssigned(r.Context(), user.ID)
 	if err != nil {
 		response.Internal(w, "list failed")
 		return
@@ -55,10 +71,15 @@ func (h *Handler) ListAssignedInspector(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *Handler) SubmitInspector(w http.ResponseWriter, r *http.Request) {
-	meta := r.Context().Value(middleware.UserMetaKey).(middleware.UserMeta)
+	user, ok := middleware.UserFromCtx(r)
+	if !ok || user == nil {
+		response.Unauthorized(w, "unauthorized")
+		return
+	}
+
 	inspectionID, _ := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 
-	if err := h.svc.Submit(r.Context(), inspectionID, meta.UserID); err != nil {
+	if err := h.svc.Submit(r.Context(), inspectionID, user.ID); err != nil {
 		response.BadRequest(w, "submit failed", err.Error())
 		return
 	}
