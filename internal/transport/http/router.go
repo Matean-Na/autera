@@ -49,6 +49,7 @@ func NewRouter(d RouterDeps) http.Handler {
 
 		// AUTH group
 		api.Group(func(authR chi.Router) {
+			// TODO спросить gpt полную версию
 			authR.Use(middleware.Auth(d.JWT, d.Logger))
 
 			userh.RegisterAuthRoutes(authR, d.UsersHandler)

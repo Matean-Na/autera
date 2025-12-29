@@ -129,6 +129,7 @@ func Auth(jwt *auth.JWT, repo domain.Repository, bl TokenBlacklist, log *zap.Log
 			r = WithUser(r, u)
 			r = WithClaims(r, claims)
 
+			// TODO спросить grt
 			_ = time.Until(claims.ExpiresAt.Time)
 
 			next.ServeHTTP(w, r)
