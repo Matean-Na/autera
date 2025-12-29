@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 
 	"autera/internal/modules/users/domain"
 )
@@ -83,4 +84,74 @@ func (r *PostgresRepo) GetRoles(ctx context.Context, userID int64) ([]domain.Rol
 		roles = append(roles, domain.Role(role))
 	}
 	return roles, nil
+}
+
+func (r *PostgresRepo) GetTokenVersion(ctx context.Context, userID int64) (int64, error) {
+	var v int64
+	err := r.db.QueryRowContext(ctx, `SELECT token_version FROM users WHERE id=$1`, userID).Scan(&v)
+	return v, err
+}
+
+func (r *PostgresRepo) IncrementTokenVersion(ctx context.Context, userID int64) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE users SET token_version = token_version + 1 WHERE id=$1`, userID)
+	return err
+}
+
+func (r *PostgresRepo) IsActive(ctx context.Context, userID int64) (bool, error) {
+	var a bool
+	err := r.db.QueryRowContext(ctx, `SELECT is_active FROM users WHERE id=$1`, userID).Scan(&a)
+	return a, err
+}
+
+func (r *PostgresRepo) SaveRefreshToken(ctx context.Context, userID int64, jti, tokenHash, deviceID string, expiresAt time.Time) error {
+	_, err := r.db.ExecContext(ctx, `
+		INSERT INTO user_refresh_tokens (user_id, jti, token_hash, device_id, expires_at)
+		VALUES ($1,$2,$3,$4,$5)
+	`, userID, jti, tokenHash, deviceID, expiresAt)
+	return err
+}
+
+func (r *PostgresRepo) GetRefreshTokenHash(ctx context.Context, jti string) (string, *time.Time, time.Time, int64, string, error) {
+	row := r.db.QueryRowContext(ctx, `
+		SELECT token_hash, revoked_at, expires_at, user_id, device_id
+		FROM user_refresh_tokens
+		WHERE jti=$1
+	`, jti)
+
+	var h string
+	var revoked sql.NullTime
+	var exp time.Time
+	var userID int64
+	var deviceID string
+
+	if err := row.Scan(&h, &revoked, &exp, &userID, &deviceID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil, time.Time{}, 0, "", errors.New("refresh not found")
+		}
+		return "", nil, time.Time{}, 0, "", err
+	}
+
+	var revokedAt *time.Time
+	if revoked.Valid {
+		revokedAt = &revoked.Time
+	}
+	return h, revokedAt, exp, userID, deviceID, nil
+}
+
+func (r *PostgresRepo) RevokeRefreshToken(ctx context.Context, jti string) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE user_refresh_tokens
+		SET revoked_at = now()
+		WHERE jti=$1 AND revoked_at IS NULL
+	`, jti)
+	return err
+}
+
+func (r *PostgresRepo) RevokeRefreshTokensByUserDevice(ctx context.Context, userID int64, deviceID string) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE user_refresh_tokens
+		SET revoked_at = now()
+		WHERE user_id=$1 AND device_id=$2 AND revoked_at IS NULL
+	`, userID, deviceID)
+	return err
 }

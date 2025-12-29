@@ -5,7 +5,9 @@ CREATE TABLE IF NOT EXISTS users
     email         TEXT        NOT NULL DEFAULT '',
     password_hash TEXT        NOT NULL,
     type          TEXT        NOT NULL DEFAULT 'person',
-    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    is_active     BOOLEAN     NOT NULL DEFAULT TRUE,
+    token_version BIGINT      NOT NULL DEFAULT 0
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_users_phone ON users (phone) WHERE phone <> '';
@@ -17,6 +19,25 @@ CREATE TABLE IF NOT EXISTS user_roles
     role    TEXT   NOT NULL,
     PRIMARY KEY (user_id, role)
 );
+
+-- refresh tokens (ротация + мультисессии по device_id)
+CREATE TABLE user_refresh_tokens
+(
+    id         BIGSERIAL PRIMARY KEY,
+    user_id    BIGINT      NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    jti        TEXT        NOT NULL UNIQUE,
+    token_hash TEXT        NOT NULL,
+    device_id  TEXT        NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    revoked_at TIMESTAMPTZ NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_user_refresh_tokens_user_device
+    ON user_refresh_tokens(user_id, device_id);
+
+CREATE INDEX idx_user_refresh_tokens_expires
+    ON user_refresh_tokens(expires_at);
 
 CREATE TABLE IF NOT EXISTS ads
 (

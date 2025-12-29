@@ -51,6 +51,8 @@ func NewRouter(d RouterDeps) http.Handler {
 		api.Group(func(authR chi.Router) {
 			authR.Use(middleware.Auth(d.JWT, d.Logger))
 
+			userh.RegisterAuthRoutes(authR, d.UsersHandler)
+
 			// SELLER
 			authR.Route("/seller", func(seller chi.Router) {
 				seller.Use(middleware.RBAC(d.Logger, domain.RoleSeller))
@@ -69,12 +71,14 @@ func NewRouter(d RouterDeps) http.Handler {
 				admin.Use(middleware.RBAC(d.Logger, domain.RoleAdmin))
 				adsh.RegisterAdminRoutes(admin, d.AdsHandler)
 				insh.RegisterAdminRoutes(admin, d.InsHandler)
+				userh.RegisterAdminRoutes(admin, d.UsersHandler)
 			})
 
 			// OWNER
 			authR.Route("/owner", func(owner chi.Router) {
 				owner.Use(middleware.RBAC(d.Logger, domain.RoleOwner))
 				reph.RegisterOwnerRoutes(owner, d.RepHandler)
+				userh.RegisterAdminRoutes(owner, d.UsersHandler)
 			})
 
 			// BUYER
