@@ -14,7 +14,13 @@ func RegisterAuthRoutes(r chi.Router, h *Handler) {
 }
 
 func RegisterAdminRoutes(r chi.Router, h *Handler) {
-	r.Post("/users/{id}/roles", h.SetRoles)
+	r.Post("/users/{id}/roles", h.SetRolesAsAdmin)
+	r.Post("/users/{id}/block", h.BlockUser)
+	r.Post("/users/{id}/unblock", h.UnblockUser)
+}
+
+func RegisterOwnerRoutes(r chi.Router, h *Handler) {
+	r.Post("/users/{id}/roles", h.SetRolesAsOwner)
 	r.Post("/users/{id}/block", h.BlockUser)
 	r.Post("/users/{id}/unblock", h.UnblockUser)
 }

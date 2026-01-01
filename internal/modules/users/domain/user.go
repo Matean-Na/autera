@@ -1,5 +1,7 @@
 package domain
 
+import "time"
+
 type Role string
 
 const (
@@ -16,5 +18,8 @@ type User struct {
 	Email        string
 	PasswordHash string
 	Type         string // person/company
+	CreatedAt    time.Time
+	IsActive     bool
+	TokenVersion int64
 	Roles        []Role
 }

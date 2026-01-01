@@ -20,7 +20,6 @@ CREATE TABLE IF NOT EXISTS user_roles
     PRIMARY KEY (user_id, role)
 );
 
--- refresh tokens (ротация + мультисессии по device_id)
 CREATE TABLE user_refresh_tokens
 (
     id         BIGSERIAL PRIMARY KEY,

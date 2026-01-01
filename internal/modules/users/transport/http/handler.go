@@ -4,7 +4,6 @@ import (
 	"autera/internal/transport/http/middleware"
 	"encoding/json"
 	"net/http"
-	"strconv"
 	"time"
 
 	"autera/internal/modules/users/application"
@@ -41,12 +40,12 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "invalid json", err.Error())
 		return
 	}
-	token, err := h.svc.Login(r.Context(), in)
+	out, err := h.svc.Login(r.Context(), in)
 	if err != nil {
 		response.Unauthorized(w, "login failed")
 		return
 	}
-	response.JSON(w, http.StatusOK, map[string]any{"token": token})
+	response.JSON(w, http.StatusOK, out)
 }
 
 func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
@@ -63,7 +62,6 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, out)
 }
 
-// logout: отзывает refresh по device_id; опционально — revoke access jti (если включено)
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	u, ok := middleware.UserFromCtx(r)
 	if !ok || u == nil {
@@ -77,9 +75,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims, _ := middleware.ClaimsFromCtx(r) // может пригодиться для revoke access
-	err := h.svc.Logout(r.Context(), u.ID, in, claims)
-	if err != nil {
+	if err := h.svc.Logout(r.Context(), u.ID, in); err != nil {
 		response.BadRequest(w, "logout failed", err.Error())
 		return
 	}
@@ -106,10 +102,10 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, map[string]any{"ok": true, "changed_at": time.Now()})
 }
 
-// ADMIN/OWNER: set roles
-func (h *Handler) SetRoles(w http.ResponseWriter, r *http.Request) {
-	idStr := chiURLParam(r, "id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
+// --- admin/owner ---
+
+func (h *Handler) SetRolesAsAdmin(w http.ResponseWriter, r *http.Request) {
+	targetID, err := parseIDParam(r, "id")
 	if err != nil {
 		response.BadRequest(w, "invalid id", err.Error())
 		return
@@ -121,7 +117,27 @@ func (h *Handler) SetRoles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.svc.SetRoles(r.Context(), id, in); err != nil {
+	if err := h.svc.SetRolesByAdmin(r.Context(), targetID, in); err != nil {
+		response.BadRequest(w, "set roles failed", err.Error())
+		return
+	}
+	response.JSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (h *Handler) SetRolesAsOwner(w http.ResponseWriter, r *http.Request) {
+	targetID, err := parseIDParam(r, "id")
+	if err != nil {
+		response.BadRequest(w, "invalid id", err.Error())
+		return
+	}
+
+	var in application.SetRolesInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "invalid json", err.Error())
+		return
+	}
+
+	if err := h.svc.SetRolesByOwner(r.Context(), targetID, in); err != nil {
 		response.BadRequest(w, "set roles failed", err.Error())
 		return
 	}
@@ -129,13 +145,13 @@ func (h *Handler) SetRoles(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) BlockUser(w http.ResponseWriter, r *http.Request) {
-	idStr := chiURLParam(r, "id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	targetID, err := parseIDParam(r, "id")
 	if err != nil {
 		response.BadRequest(w, "invalid id", err.Error())
 		return
 	}
-	if err := h.svc.SetActive(r.Context(), id, false); err != nil {
+
+	if err := h.svc.SetActiveByAdmin(r.Context(), targetID, false); err != nil {
 		response.BadRequest(w, "block failed", err.Error())
 		return
 	}
@@ -143,13 +159,13 @@ func (h *Handler) BlockUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UnblockUser(w http.ResponseWriter, r *http.Request) {
-	idStr := chiURLParam(r, "id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	targetID, err := parseIDParam(r, "id")
 	if err != nil {
 		response.BadRequest(w, "invalid id", err.Error())
 		return
 	}
-	if err := h.svc.SetActive(r.Context(), id, true); err != nil {
+
+	if err := h.svc.SetActiveByAdmin(r.Context(), targetID, true); err != nil {
 		response.BadRequest(w, "unblock failed", err.Error())
 		return
 	}

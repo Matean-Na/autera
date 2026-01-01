@@ -3,6 +3,7 @@ package http
 import (
 	"autera/internal/modules/users/domain"
 	"net/http"
+	"time"
 
 	adsh "autera/internal/modules/ads/transport/http"
 	insh "autera/internal/modules/inspections/transport/http"
@@ -21,6 +22,9 @@ type RouterDeps struct {
 	Logger *zap.Logger
 	JWT    *auth.JWT
 
+	// нужно для Auth middleware: is_active + token_version
+	UsersRepo domain.Repository
+
 	UsersHandler *userh.Handler
 	AdsHandler   *adsh.Handler
 	InsHandler   *insh.Handler
@@ -35,7 +39,7 @@ func NewRouter(d RouterDeps) http.Handler {
 	r.Use(chimw.RealIP)
 	r.Use(middleware.Recovery(d.Logger))
 	r.Use(middleware.Logging(d.Logger))
-	r.Use(chimw.Timeout(60 * 1e9)) // 60s
+	r.Use(chimw.Timeout(60 * time.Second))
 
 	r.Route("/api/v1", func(api chi.Router) {
 		api.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
@@ -49,9 +53,9 @@ func NewRouter(d RouterDeps) http.Handler {
 
 		// AUTH group
 		api.Group(func(authR chi.Router) {
-			// TODO спросить gpt полную версию
-			authR.Use(middleware.Auth(d.JWT, d.Logger))
+			authR.Use(middleware.Auth(d.JWT, d.UsersRepo, d.Logger))
 
+			// общие auth endpoints: logout/change_password
 			userh.RegisterAuthRoutes(authR, d.UsersHandler)
 
 			// SELLER
@@ -70,16 +74,22 @@ func NewRouter(d RouterDeps) http.Handler {
 			// ADMIN
 			authR.Route("/admin", func(admin chi.Router) {
 				admin.Use(middleware.RBAC(d.Logger, domain.RoleAdmin))
+
 				adsh.RegisterAdminRoutes(admin, d.AdsHandler)
 				insh.RegisterAdminRoutes(admin, d.InsHandler)
+
+				// admin может: block/unblock + назначать роли без admin/owner
 				userh.RegisterAdminRoutes(admin, d.UsersHandler)
 			})
 
 			// OWNER
 			authR.Route("/owner", func(owner chi.Router) {
 				owner.Use(middleware.RBAC(d.Logger, domain.RoleOwner))
+
 				reph.RegisterOwnerRoutes(owner, d.RepHandler)
-				userh.RegisterAdminRoutes(owner, d.UsersHandler)
+
+				// owner может больше: включая назначение admin (но не owner)
+				userh.RegisterOwnerRoutes(owner, d.UsersHandler)
 			})
 
 			// BUYER
